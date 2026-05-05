@@ -157,6 +157,7 @@ kubectl describe policyreport -n devops-demo
 This repo includes a workflow at [.github/workflows/ci-cd.yaml](.github/workflows/ci-cd.yaml):
 - CI job uses Kind on GitHub-hosted runners to install Kyverno, apply policies, and run tests.
 - CD job runs on a self-hosted runner labeled `minikube` and applies policies to your local Minikube cluster.
+Workflow runs on pushes to `main` and on pull requests.
 
 ### CD prerequisites (self-hosted runner)
 
