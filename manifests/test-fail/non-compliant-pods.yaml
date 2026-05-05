@@ -1,0 +1,77 @@
+# ❌ TEST 1: Missing required labels (will be BLOCKED)
+# Fails: require-pod-labels policy
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fail-missing-labels
+  # ❌ No 'app' or 'env' labels!
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.25.3
+      resources:
+        limits:
+          cpu: "250m"
+          memory: "256Mi"
+---
+# ❌ TEST 2: Using :latest tag (will be BLOCKED)
+# Fails: disallow-latest-tag policy
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fail-latest-tag
+  labels:
+    app: test-app
+    env: dev
+spec:
+  securityContext:
+    runAsNonRoot: true
+  containers:
+    - name: nginx
+      image: nginx:latest   # ❌ :latest tag not allowed!
+      resources:
+        limits:
+          cpu: "250m"
+          memory: "256Mi"
+      securityContext:
+        privileged: false
+        allowPrivilegeEscalation: false
+---
+# ❌ TEST 3: No resource limits (will be BLOCKED)
+# Fails: require-resource-limits policy
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fail-no-limits
+  labels:
+    app: test-app
+    env: dev
+spec:
+  securityContext:
+    runAsNonRoot: true
+  containers:
+    - name: nginx
+      image: nginx:1.25.3
+      # ❌ No resources.limits defined!
+      securityContext:
+        privileged: false
+---
+# ❌ TEST 4: Privileged container (will be BLOCKED)
+# Fails: disallow-privileged-containers policy
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fail-privileged
+  labels:
+    app: test-app
+    env: dev
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.25.3
+      resources:
+        limits:
+          cpu: "250m"
+          memory: "256Mi"
+      securityContext:
+        privileged: true    # ❌ Privileged is not allowed!

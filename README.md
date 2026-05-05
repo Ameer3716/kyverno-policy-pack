@@ -152,6 +152,22 @@ kubectl describe policyreport -n devops-demo
 
 ---
 
+## CI/CD with GitHub Actions
+
+This repo includes a workflow at [.github/workflows/ci-cd.yaml](.github/workflows/ci-cd.yaml):
+- CI job uses Kind on GitHub-hosted runners to install Kyverno, apply policies, and run tests.
+- CD job runs on a self-hosted runner labeled `minikube` and applies policies to your local Minikube cluster.
+
+### CD prerequisites (self-hosted runner)
+
+1. Install a GitHub Actions self-hosted runner on the machine running Minikube and add the label `minikube`.
+2. Install `kubectl`, `helm`, and `minikube`, and make sure `minikube` is running.
+3. Ensure the runner user can access kubeconfig and `kubectl config use-context minikube` works.
+
+The CD job runs only on pushes to `main`.
+
+---
+
 ## 🔍 Policy Summary
 
 | Policy | Type | Action | Purpose |

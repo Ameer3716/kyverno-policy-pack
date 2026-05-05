@@ -1,0 +1,41 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-default-labels
+  annotations:
+    policies.kyverno.io/title: Add Default Labels
+    policies.kyverno.io/category: Automation
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/description: >-
+      Automatically adds 'managed-by: kyverno' and 'created-at' labels
+      to all Pods that do not already have them.
+spec:
+  rules:
+    - name: add-managed-by-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              +(managed-by): "kyverno"
+              +(team): "devops"
+    - name: add-labels-to-deployments
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              +(managed-by): "kyverno"
+          spec:
+            template:
+              metadata:
+                labels:
+                  +(managed-by): "kyverno"

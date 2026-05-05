@@ -1,0 +1,119 @@
+name: CI-CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    name: CI (kind)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.29.0
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: kyverno-ci
+
+      - name: Install Kyverno
+        run: |
+          helm repo add kyverno https://kyverno.github.io/kyverno/
+          helm repo update
+          helm upgrade --install kyverno kyverno/kyverno \
+            --namespace kyverno \
+            --create-namespace \
+            --set replicaCount=1 \
+            --wait \
+            --timeout 3m
+          kubectl wait --for=condition=Ready pods --all -n kyverno --timeout=120s
+
+      - name: Prepare namespaces
+        run: |
+          kubectl create namespace devops-demo --dry-run=client -o yaml | kubectl apply -f -
+          kubectl label namespace devops-demo environment=demo --overwrite
+          kubectl create namespace production --dry-run=client -o yaml | kubectl apply -f -
+          kubectl label namespace production env=production --overwrite
+
+      - name: Apply policies
+        run: |
+          kubectl apply -f policies/validation/
+          kubectl apply -f policies/mutation/
+          kubectl apply -f policies/generation/
+
+      - name: Run policy tests
+        run: |
+          chmod +x scripts/test-policies.sh
+          bash scripts/test-policies.sh
+
+  cd_minikube:
+    name: CD (minikube)
+    runs-on: [self-hosted, minikube]
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.29.0
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.4
+
+      - name: Verify cluster access
+        shell: pwsh
+        run: |
+          kubectl config use-context minikube
+          kubectl cluster-info --request-timeout=10s
+
+      - name: Install or upgrade Kyverno
+        shell: pwsh
+        run: |
+          helm repo add kyverno https://kyverno.github.io/kyverno/ | Out-Null
+          helm repo update
+          helm upgrade --install kyverno kyverno/kyverno `
+            --namespace kyverno `
+            --create-namespace `
+            --set replicaCount=1 `
+            --wait `
+            --timeout 3m
+          kubectl wait --for=condition=Ready pods --all -n kyverno --timeout=120s
+
+      - name: Prepare namespaces
+        shell: pwsh
+        run: |
+          kubectl create namespace devops-demo --dry-run=client -o yaml | kubectl apply -f -
+          kubectl label namespace devops-demo environment=demo --overwrite
+          kubectl create namespace production --dry-run=client -o yaml | kubectl apply -f -
+          kubectl label namespace production env=production --overwrite
+
+      - name: Apply policies
+        shell: pwsh
+        run: |
+          kubectl apply -f policies/validation/
+          kubectl apply -f policies/mutation/
+          kubectl apply -f policies/generation/
+
+      - name: Run policy tests (post-deploy)
+        shell: pwsh
+        run: |
+          bash scripts/test-policies.sh

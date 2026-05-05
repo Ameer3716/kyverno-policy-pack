@@ -1,0 +1,66 @@
+# ✅ This manifest PASSES all Kyverno policies
+# It has: required labels, versioned image, resource limits, non-root user
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: compliant-nginx-pod
+  labels:
+    app: nginx-web          # ✅ Required 'app' label
+    env: staging            # ✅ Required 'env' label
+    version: "1.0"
+spec:
+  securityContext:
+    runAsNonRoot: true      # ✅ Not running as root
+    runAsUser: 1000
+  containers:
+    - name: nginx
+      image: nginx:1.25.3   # ✅ Pinned version, not :latest
+      ports:
+        - containerPort: 80
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "250m"       # ✅ CPU limit defined
+          memory: "256Mi"   # ✅ Memory limit defined
+      securityContext:
+        privileged: false              # ✅ Not privileged
+        allowPrivilegeEscalation: false # ✅ No privilege escalation
+        readOnlyRootFilesystem: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliant-deployment
+  labels:
+    app: my-app             # ✅ Required label
+    env: staging            # ✅ Required label
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app         # ✅ Pod template labels
+        env: staging
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: my-app
+          image: httpd:2.4.58   # ✅ Pinned version
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"       # ✅ Limits defined
+              memory: "512Mi"
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false

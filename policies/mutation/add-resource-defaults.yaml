@@ -1,0 +1,30 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-resource-defaults
+  annotations:
+    policies.kyverno.io/title: Add Default Resource Requests
+    policies.kyverno.io/category: Automation
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/description: >-
+      Automatically sets default resource requests (CPU: 100m, Memory: 128Mi)
+      on containers that do not define them. This ensures the scheduler
+      can make proper placement decisions.
+spec:
+  rules:
+    - name: add-cpu-memory-requests
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      mutate:
+        foreach:
+          - list: "request.object.spec.containers"
+            patchesJson6902: |-
+              - op: add
+                path: /spec/containers/{{elementIndex}}/resources/requests/cpu
+                value: "100m"
+              - op: add
+                path: /spec/containers/{{elementIndex}}/resources/requests/memory
+                value: "128Mi"
