@@ -105,12 +105,10 @@ jobs:
         run: |
           $hostStatus = & minikube status --format "{{.Host}}" 2>$null
           if ($LASTEXITCODE -ne 0 -or $hostStatus -ne "Running") {
-            Write-Host "Starting minikube with docker driver..."
-            # NOTE: If Docker Desktop is not running/accessible, switch --driver=docker
-            # to --driver=hyperv (requires Hyper-V enabled on Windows as Administrator)
-            minikube start --driver=docker --cpus=2 --memory=4096
+            Write-Host "Starting minikube with Hyper-V driver..."
+            minikube start --driver=hyperv --cpus=2 --memory=4096
             Write-Host "Waiting for minikube to be ready..."
-            Start-Sleep -Seconds 15
+            Start-Sleep -Seconds 20
           } else {
             Write-Host "Minikube is already running."
           }
