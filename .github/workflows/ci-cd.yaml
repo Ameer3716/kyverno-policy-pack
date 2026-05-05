@@ -82,8 +82,14 @@ jobs:
             exit 1
           }
           if (-not (Get-Command helm -ErrorAction SilentlyContinue)) {
-            Write-Error "helm not found on runner PATH"
-            exit 1
+            $version = "v3.14.4"
+            $zip = Join-Path $env:RUNNER_TEMP "helm-$version-windows-amd64.zip"
+            $url = "https://get.helm.sh/helm-$version-windows-amd64.zip"
+            $dest = Join-Path $env:RUNNER_TEMP "helm-$version"
+            Invoke-WebRequest -Uri $url -OutFile $zip
+            Expand-Archive -Path $zip -DestinationPath $dest -Force
+            $helmDir = Join-Path $dest "windows-amd64"
+            Add-Content -Path $env:GITHUB_PATH -Value $helmDir
           }
           kubectl version --client
           helm version
