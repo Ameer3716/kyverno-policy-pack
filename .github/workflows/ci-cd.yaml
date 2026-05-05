@@ -100,6 +100,21 @@ jobs:
       - name: Verify cluster access
         shell: powershell
         run: |
+          if (-not (Get-Command minikube -ErrorAction SilentlyContinue)) {
+            Write-Error "minikube not found on runner PATH"
+            exit 1
+          }
+          $hostStatus = & minikube status --format "{{.Host}}" 2>$null
+          if ($LASTEXITCODE -ne 0 -or $hostStatus -ne "Running") {
+            minikube start --driver=docker --cpus=2 --memory=4096
+          }
+          minikube update-context
+          $contexts = kubectl config get-contexts -o name
+          if ($contexts -notcontains "minikube") {
+            Write-Error "minikube context not found. Run the runner under the same user that runs minikube or set KUBECONFIG to that user's config."
+            $contexts
+            exit 1
+          }
           kubectl config use-context minikube
           kubectl cluster-info --request-timeout=10s
 
