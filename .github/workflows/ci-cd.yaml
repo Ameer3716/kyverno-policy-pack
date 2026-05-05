@@ -81,6 +81,10 @@ jobs:
             Write-Error "kubectl not found on runner PATH"
             exit 1
           }
+          if (-not (Get-Command minikube -ErrorAction SilentlyContinue)) {
+            Write-Error "minikube not found on runner PATH"
+            exit 1
+          }
           if (-not (Get-Command helm -ErrorAction SilentlyContinue)) {
             $version = "v3.14.4"
             $zip = Join-Path $env:RUNNER_TEMP "helm-$version-windows-amd64.zip"
@@ -89,34 +93,40 @@ jobs:
             Invoke-WebRequest -Uri $url -OutFile $zip
             Expand-Archive -Path $zip -DestinationPath $dest -Force
             $helmDir = Join-Path $dest "windows-amd64"
-            # Persist helm to PATH for subsequent steps
             Add-Content -Path $env:GITHUB_PATH -Value $helmDir
-            # Also update PATH for the current step
             $env:PATH = "$helmDir;$env:PATH"
           }
           kubectl version --client
           helm version
+          minikube version
+
+      - name: Start minikube
+        shell: powershell
+        run: |
+          $hostStatus = & minikube status --format "{{.Host}}" 2>$null
+          if ($LASTEXITCODE -ne 0 -or $hostStatus -ne "Running") {
+            Write-Host "Starting minikube with docker driver..."
+            # NOTE: If Docker Desktop is not running/accessible, switch --driver=docker
+            # to --driver=hyperv (requires Hyper-V enabled on Windows as Administrator)
+            minikube start --driver=docker --cpus=2 --memory=4096
+            Write-Host "Waiting for minikube to be ready..."
+            Start-Sleep -Seconds 15
+          } else {
+            Write-Host "Minikube is already running."
+          }
+          minikube update-context
 
       - name: Verify cluster access
         shell: powershell
         run: |
-          if (-not (Get-Command minikube -ErrorAction SilentlyContinue)) {
-            Write-Error "minikube not found on runner PATH"
-            exit 1
-          }
-          $hostStatus = & minikube status --format "{{.Host}}" 2>$null
-          if ($LASTEXITCODE -ne 0 -or $hostStatus -ne "Running") {
-            minikube start --driver=docker --cpus=2 --memory=4096
-          }
-          minikube update-context
           $contexts = kubectl config get-contexts -o name
           if ($contexts -notcontains "minikube") {
-            Write-Error "minikube context not found. Run the runner under the same user that runs minikube or set KUBECONFIG to that user's config."
-            $contexts
+            Write-Error "minikube context not found after start. Check minikube logs."
             exit 1
           }
           kubectl config use-context minikube
-          kubectl cluster-info --request-timeout=10s
+          kubectl cluster-info --request-timeout=30s
+          kubectl get nodes
 
       - name: Install or upgrade Kyverno
         shell: powershell
