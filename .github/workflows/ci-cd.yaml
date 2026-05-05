@@ -89,7 +89,10 @@ jobs:
             Invoke-WebRequest -Uri $url -OutFile $zip
             Expand-Archive -Path $zip -DestinationPath $dest -Force
             $helmDir = Join-Path $dest "windows-amd64"
+            # Persist helm to PATH for subsequent steps
             Add-Content -Path $env:GITHUB_PATH -Value $helmDir
+            # Also update PATH for the current step
+            $env:PATH = "$helmDir;$env:PATH"
           }
           kubectl version --client
           helm version
