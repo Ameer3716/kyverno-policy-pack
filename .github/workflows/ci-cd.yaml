@@ -15,15 +15,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: v1.29.0
-
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: v3.14.4
+      - name: Verify tools
+        shell: pwsh
+        run: |
+          if (-not (Get-Command kubectl -ErrorAction SilentlyContinue)) {
+            Write-Error "kubectl not found on runner PATH"
+            exit 1
+          }
+          if (-not (Get-Command helm -ErrorAction SilentlyContinue)) {
+            Write-Error "helm not found on runner PATH"
+            exit 1
+          }
+          kubectl version --client --short
+          helm version
 
       - name: Create kind cluster
         uses: helm/kind-action@v1.10.0
